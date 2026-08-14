@@ -40,13 +40,13 @@ A modern, responsive web application built with:
 
 ### 2. Backend Services
 
-Expected to be implemented as a **Spring Boot REST API** with:
-- JWT authentication
-- Student and attendance data persistence
-- Real-time attendance stream (WebSocket/SSE)
+Implemented using **Google Firestore** with:
+- JWT authentication via Firebase Auth
+- Real-time student and attendance data synchronization
+- Live attendance stream via Firestore listeners (real-time)
 - Device management and heartbeat tracking
 - Report generation and analytics
-- Firestore integration (currently mocked)
+- Security rules for data access control
 
 ### 3. Firmware (`firmware/`)
 
@@ -81,34 +81,35 @@ The application will start at `http://localhost:5173` (Vite default).
 
 ### Environment Configuration
 
-Create a `.env` file in the `attenda-sync-main/` directory:
+Create a `.env` file in the `attenda-sync-main/` directory with your Firebase project credentials:
 
 ```env
-VITE_API_BASE_URL=http://localhost:8080/api
-VITE_FIREBASE_API_KEY=your-key
-VITE_FIREBASE_AUTH_DOMAIN=your-domain
-VITE_FIREBASE_PROJECT_ID=your-project
-# ... other Firebase config
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
 ```
 
-## API Contract
+## Firestore Collections & Data Model
 
-The frontend is structured to work with the following REST API endpoints:
+The backend uses the following Firestore collections:
 
-| Method | Endpoint | Description |
+| Collection | Documents | Description |
 | --- | --- | --- |
-| POST | `/auth/login` | User authentication |
-| GET | `/students` | List all students (paginated) |
-| POST | `/students` | Create new student |
-| GET | `/students/{id}` | Get student details |
-| PUT | `/students/{id}` | Update student |
-| DELETE | `/students/{id}` | Delete student |
-| GET | `/attendance` | Attendance log (filterable) |
-| GET | `/attendance/live` | Real-time attendance stream (WebSocket/SSE) |
-| GET | `/devices` | List RFID reader devices |
-| POST | `/devices` | Register new device |
-| GET | `/devices/{id}` | Get device status |
-| GET | `/reports/summary` | Attendance analytics and reports |
+| `users` | `{userId}` | Admin and staff accounts with auth data |
+| `students` | `{studentId}` | Student records (name, ID, department, etc.) |
+| `attendance` | `{attendanceId}` | Individual scan records with timestamp and device info |
+| `devices` | `{deviceId}` | RFID reader device metadata, location, status |
+| `institutes` | `{instituteId}` | Institution settings and configuration |
+| `reports` | `{reportId}` | Generated attendance summaries and analytics |
+
+**Real-time Integration:** The frontend uses Firestore listeners for live data updates:
+- Student attendance changes trigger real-time UI updates
+- Device heartbeat status updates instantly
+- Live attendance stream via Firestore collection listener
+- No additional WebSocket configuration required
 
 ## Project Structure
 
@@ -153,18 +154,23 @@ rfid-attendance-system/
 
 ### Mock vs. Real Backend
 
-The frontend currently runs on a **mock API layer** (`src/services/mockData.ts`). To connect to a real backend:
+The frontend currently runs on a **mock API layer** (`src/services/mockData.ts`). To connect to the **live Firestore backend**:
 
-1. Open each service in `src/services/` (e.g., `studentService.ts`)
-2. Replace mock data resolution with actual `api` calls
-3. No component changes needed — types and function signatures already match the REST contract
+1. Update `.env` with your Firebase project credentials
+2. Open each service in `src/services/` (e.g., `studentService.ts`)
+3. Replace mock data resolution with Firestore SDK calls:
+   - Use `collection(db, 'students')` instead of mockData
+   - Use `onSnapshot()` for real-time listeners
+   - Use `query()` with `where()` for filtering
+4. No component changes needed — types already match the Firestore schema
 
 ### Authentication Flow
 
-- JWT tokens stored in localStorage
-- Axios interceptor (`src/services/api.ts`) adds token to requests
+- Firebase Auth handles JWT token generation and management
+- Tokens automatically added to Firestore requests
 - Protected routes guard unauthenticated access
 - Demo credentials available on login page
+- Firestore Security Rules enforce data access control
 
 ## Technology Stack
 
@@ -175,11 +181,11 @@ The frontend currently runs on a **mock API layer** (`src/services/mockData.ts`)
 | **UI Framework** | Radix UI, shadcn/ui |
 | **Styling** | Tailwind CSS |
 | **State Management** | React Context + Hooks |
-| **HTTP Client** | Axios |
+| **HTTP Client** | Firebase SDK (Firestore & Auth) |
 | **Forms** | React Hook Form + Zod |
-| **Authentication** | JWT, Firebase |
-| **Backend** | Spring Boot (planned) |
-| **Database** | Firestore / Relational DB (planned) |
+| **Authentication** | Firebase Auth with JWT |
+| **Backend** | Google Firestore (NoSQL) |
+| **Database** | Firestore with Real-time Listeners |
 | **Embedded** | C/C++ on ESP32 |
 
 ## Building & Deployment
@@ -209,17 +215,19 @@ Output will be in the `dist/` folder, ready for deployment to any static hosting
 
 ## Troubleshooting
 
-### API Connection Issues
+### Firebase Connection Issues
 
-- Verify `VITE_API_BASE_URL` in `.env`
-- Check backend service is running on configured port
-- Review browser console for CORS errors
+- Verify Firebase credentials in `.env`
+- Check Firebase project is active and Firestore database enabled
+- Ensure Firestore Security Rules allow read/write access
+- Review browser console for Firebase SDK errors
 
 ### Authentication Problems
 
 - Clear localStorage and reload
-- Check JWT token expiration
-- Verify credentials match backend user records
+- Check Firebase Auth configuration
+- Verify user account exists in Firebase Console
+- Check Firestore Security Rules for auth claims
 
 ### Build Failures
 
